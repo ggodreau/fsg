@@ -58,7 +58,10 @@ def get_rule(id):
         res = cur.fetchone()
         cur.close()
         conn.close()
-        return json.dumps({ 'logic': res[0], 'unit': res[1] })
+        if res is None:
+            return None
+        else:
+            return json.dumps({ 'logic': res[0], 'unit': res[1] })
 
     except (Exception, psycopg2.DatabaseError) as error:
         return json.dumps({'error': error.pgerror})
