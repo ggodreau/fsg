@@ -1,16 +1,50 @@
 import json
 import psycopg2
 
-def foo():
-    with open("./constants.json") as f:
-        data = f.read()
-        host = json.loads(data)['pg']['host']
-        database = json.loads(data)['pg']['database']
-        user = json.loads(data)['pg']['user']
-        password = json.loads(data)['pg']['password']
-    return host
+def get_conn():
+    conn = None
+    try:
+        with open("./constants.json") as f:
+            data = f.read()
+            host = json.loads(data)['pg']['host']
+            database = json.loads(data)['pg']['database']
+            user = json.loads(data)['pg']['user']
+            password = json.loads(data)['pg']['password']
+        # connect to the PostgreSQL server
+        # print('Connecting to the PostgreSQL database...')
+        conn = psycopg2.connect(
+            host=host,
+            database=database,
+            user=user,
+            password=password)
+        return conn
+    except (Exception, psycopg2.DatabaseError) as error:
+        return error.pgerror
 
-def connect():
+def set_rule(id, logic, unit=1):
+    """
+    Sets rule for sensor with celsius default (1)
+    """
+    try:
+        # create a cursor
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+                    INSERT INTO rules (id, scale, logic)
+                    VALUES (%s, %s, %s);
+                    """,
+                    (id, logic, unit))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return 'inserted'
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        return error.pgerror
+
+def get_ver():
     """ Connect to the PostgreSQL database server """
     conn = None
     try:

@@ -1,5 +1,6 @@
 FROM jazzdd/alpine-flask:python3
 RUN apk add postgresql-dev gcc python3-dev musl-dev
 COPY requirements.txt /tmp
+COPY constants.json /app
 RUN pip3 install --upgrade pip
 RUN pip3 install --requirement /tmp/requirements.txt

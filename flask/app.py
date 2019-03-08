@@ -1,6 +1,5 @@
 from flask import Flask
-from pg import connect
-from pg import foo
+import pg
 
 app = Flask(__name__)
 
@@ -8,15 +7,15 @@ app = Flask(__name__)
 def hello():
     return "Hello World!"
 
-@app.route("/pg")
-def pgget():
-    out = connect()
-    return out
-
-@app.route("/pgtest")
+@app.route("/getver")
 def pgtest():
-    out2 = foo()
+    out2 = pg.get_ver()
     return out2
+
+@app.route("/setrule")
+def sr():
+    out3 = pg.set_rule('a', 1, 1)
+    return out3
 
 if __name__ == "__main__":
     app.run(debug=True)
