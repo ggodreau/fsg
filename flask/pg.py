@@ -19,7 +19,7 @@ def get_conn():
     except (Exception, psycopg2.DatabaseError) as error:
         return error.pgerror
 
-def set_rule(id, logic, unit=1):
+def set_rule(id, logic, templ, temph, unit=1):
     """
     Sets rule for sensor with celsius default (1)
     """
@@ -28,15 +28,15 @@ def set_rule(id, logic, unit=1):
         cur = conn.cursor()
 
         cur.execute("""
-                    INSERT INTO rules (id, scale, logic)
-                    VALUES (%s, %s, %s);
+                    INSERT INTO rules (id, scale, logic, templ, temph)
+                    VALUES (%s, %s, %s, %s, %s);
                     """,
-                    (id, logic, unit))
+                    (id, logic, unit, templ, temph))
         conn.commit()
         cur.close()
         conn.close()
 
-        return json.dumps({'id': str(id), 'scale': str(logic), 'unit': str(unit)})
+        return json.dumps({'id': str(id), 'scale': str(logic), 'unit': str(unit), 'templ': str(templ), 'temph': str(temph)})
 
     except (Exception, psycopg2.DatabaseError) as error:
         return json.dumps({'error': error.pgerror})

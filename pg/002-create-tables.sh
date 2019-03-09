@@ -5,7 +5,9 @@ psql -v ON_ERROR_STOP=1 --username "docker" --dbname "docker" <<-EOSQL
     CREATE TABLE rules (
       id char(255) UNIQUE NOT NULL,
       scale INT CHECK (scale >= 0),
-      logic INT CHECK (logic >= 0)
+      logic INT CHECK (logic >= 0),
+      temph NUMERIC,
+      templ NUMERIC
     );
 
     CREATE TABLE scale (
