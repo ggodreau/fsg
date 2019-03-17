@@ -35,11 +35,11 @@ def set_rule(payload):
     """
     content = payload.json
 
-    id = None
-    logic = None
-    templ = None
-    temph = None
-    scale = None
+    # id = None
+    # logic = None
+    # templ = None
+    # temph = None
+    # scale = None
 
     print("entered setrule section")
     # parse id field
