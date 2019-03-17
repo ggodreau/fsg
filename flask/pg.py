@@ -32,8 +32,12 @@ def __compare_temps__(payload):
     Compares temps to their logic levels and calls twilio
     """
     print('compare temps called')
-    print('compare temps are: ', str(payload))
-    return(payload)
+    print('compare temps are: ',
+          str(payload),
+          payload['logic'],
+          payload['templ'],
+          payload['temph'])
+    return('butthead')
 
 def input_data(payload):
     """
@@ -45,6 +49,7 @@ def input_data(payload):
     # declare our soon-to-be-found rules for this id
     compare_temps_payload = {
         'logic': None,
+        'unit': None,
         'templ': None,
         'temph': None
     }
@@ -93,7 +98,7 @@ def input_data(payload):
         else:
             for k, v in zip(compare_temps_payload.keys(), res):
                 compare_temps_payload[k] = v
-            return str(__compare_temps__(compare_temps_payload))
+            return __compare_temps__(compare_temps_payload)
     except (Exception, psycopg2.DatabaseError) as error:
         return error_maker(400, error.pgerror)
 
@@ -174,7 +179,7 @@ def set_rule(payload):
                     INSERT INTO rules (id, unit, logic, templ, temph)
                     VALUES (%s, %s, %s, NULLIF(CAST(%s AS TEXT), '')::numeric, NULLIF(CAST(%s AS TEXT), '')::numeric);
                     """,
-                    (id, logic, unit, templ, temph))
+                    (id, unit, logic, templ, temph))
         conn.commit()
         cur.close()
         conn.close()
@@ -230,31 +235,6 @@ def get_rule(payload):
 
     except (Exception, psycopg2.DatabaseError) as error:
         return error_maker(400, error.pgerror)
-
-def get_rule_old(id):
-    """
-    Gets rule given id
-    """
-    try:
-        # create a cursor
-        conn = get_conn()
-        cur = conn.cursor()
-
-        cur.execute("""
-                    SELECT r.logic, u.unit from rules r
-                    JOIN units u on u.id = r.unit WHERE r.id = %s;
-                    """,
-                    (id))
-        res = cur.fetchone()
-        cur.close()
-        conn.close()
-        if res is None:
-            return None
-        else:
-            return json.dumps({ 'logic': res[0], 'unit': res[1] })
-
-    except (Exception, psycopg2.DatabaseError) as error:
-        return json.dumps({'error': error.pgerror})
 
 if __name__ == '__main__':
     connect()
