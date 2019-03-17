@@ -93,6 +93,8 @@ def set_rule(payload):
                 temph = content['temph']
             except Keyerror:
                 return json.dumps({'error': 'both low and high temp needed for OOB logic'})
+            if templ >= temph:
+                return json.dumps({'error': 'lower temp limit cannot be greater than or equal to upper temp limit'})
         else:
             return json.dumps({'error': 'invalid logic parameter'})
     except Keyerror:
@@ -107,7 +109,7 @@ def set_rule(payload):
 
         cur.execute("""
                     INSERT INTO rules (id, scale, logic, templ, temph)
-                    VALUES (%s, %s, %s, NULLIF(%s, '')::integer, NULLIF(%s, '')::integer);
+                    VALUES (%s, %s, %s, NULLIF(CAST(%s AS TEXT), '')::numeric, NULLIF(CAST(%s AS TEXT), '')::numeric);
                     """,
                     (id, logic, scale, templ, temph))
         conn.commit()
@@ -116,8 +118,8 @@ def set_rule(payload):
 
         return json.dumps({'id': id, 'scale': logic, 'logic': logic, 'templ': templ, 'temph': temph})
 
-    except (Exception, psycopg2.DatabaseError) as error:
-        return json.dumps({'error': error})
+    except (Exception, psycopg2.IntegrityError) as error:
+        return json.dumps({'error': str(error)})
 
 def set_rule_old(id, logic, templ, temph, unit=1):
     """
