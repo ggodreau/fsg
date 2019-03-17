@@ -90,7 +90,7 @@ def set_rule(payload):
 
         # logic param is parsable but not valid (0, 1, or 2)
         else:
-            return error_maker(400, 'invalid logic parameter'})
+            return error_maker(400, 'invalid logic parameter')
     except KeyError:
         return error_maker(400, 'missing logic parameter')
     except ValueError:
@@ -122,8 +122,42 @@ def set_rule(payload):
             status=409,
             mimetype='application/json'
         )
+def get_rule(payload):
 
-def get_rule(id):
+    content = request.json
+
+    try:
+        id = str(content['id'])
+    except KeyError:
+        return error_maker(400, 'missing id parameter')
+    except ValueError:
+        return error_maker(400, 'id parameter not parsable')
+
+    print(id)
+
+    # get the rule for the input id from the db
+    try:
+        # create a cursor
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+                    SELECT r.logic, s.unit from rules r
+                    JOIN scale s on s.id = r.scale WHERE r.id = %s;
+                    """,
+                    (id))
+        res = cur.fetchone()
+        cur.close()
+        conn.close()
+        if res is None:
+            return error_maker(400, f'no rule exists for id {id}')
+        else:
+            return json.dumps({ 'logic': res[0], 'unit': res[1] })
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        return error_maker(400, error.pgerror)
+
+def get_rule_old(id):
     """
     Gets rule given id
     """
