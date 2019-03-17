@@ -4,9 +4,10 @@ import json
 
 app = Flask(__name__)
 
-@app.route("/sms")
-def hello():
-    return "Hello World!"
+@app.route("/", methods=['POST'])
+def id():
+    res = pg.input_data(request)
+    return res
 
 @app.route("/setrule", methods=['POST'])
 def sr():

@@ -27,6 +27,76 @@ def error_maker(status_code, message):
         mimetype='application/json'
     )
 
+def __compare_temps__(payload):
+    """
+    Compares temps to their logic levels and calls twilio
+    """
+    print('compare temps called')
+    print('compare temps are: ', str(payload))
+    return(payload)
+
+def input_data(payload):
+    """
+    Receives input sensor data stream and compares for alerts
+    """
+
+    content = payload.json
+
+    # declare our soon-to-be-found rules for this id
+    compare_temps_payload = {
+        'logic': None,
+        'templ': None,
+        'temph': None
+    }
+
+    # parse id field
+    try:
+        id = str(content['id'])
+    except:
+        return error_maker(400, 'invalid or missing id parameter')
+
+    # parse value field
+    try:
+        value = float(content['value'])
+    except KeyError:
+        return error_maker(400, 'no value field found')
+    except ValueError:
+        return error_maker(400, 'value field not parsable')
+
+    # parse unit field
+    try:
+        unit = int(content['unit'])
+        if unit not in [0, 1]:
+            return error_maker(400, 'invalid unit parameter')
+    except KeyError:
+        return error_maker(400, 'no unit field found')
+    except ValueError:
+        return error_maker(400, 'unit field not parsable')
+
+    # call the db to get templ, temph, and logic for the input id
+    # this is a copy of get_rule; needs refactored into
+    # werkzeug.local.LocalProxy object for DRY
+    try:
+        # create a cursor
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+                    SELECT r.logic, r.unit, r.templ, r.temph
+                    FROM rules r WHERE r.id = %s;
+                    """,
+                    (id))
+        res = cur.fetchone()
+        cur.close()
+        conn.close()
+        if res is None:
+            return error_maker(400, 'rule for id does not exist, please create a rule at the /setrule endpoint')
+        else:
+            for k, v in zip(compare_temps_payload.keys(), res):
+                compare_temps_payload[k] = v
+            return str(__compare_temps__(compare_temps_payload))
+    except (Exception, psycopg2.DatabaseError) as error:
+        return error_maker(400, error.pgerror)
+
 def set_rule(payload):
     """
     Sets rule for sensor with celsius default (0)
@@ -37,17 +107,17 @@ def set_rule(payload):
     try:
         id = str(content['id'])
     except:
-        return json.dumps({'error': 'invalid or missing id parameter'})
+        return error_maker(400, 'invalid or missing id parameter')
 
-    # parse temp scale
+    # parse temp unit
     try:
-        scale = int(content['scale'])
-        # validate scale is celsius or farenheit, respetctively
-        if scale not in [0, 1]:
-            return json.dumps({'error': 'invalid scale parameter'})
-    # assume a default of celsius if scale is missing
+        unit = int(content['unit'])
+        # validate unit is celsius or farenheit, respetctively
+        if unit not in [0, 1]:
+            return error_maker(400, 'invalid unit parameter')
+    # assume a default of celsius if unit is missing
     except KeyError:
-        scale = 0
+        unit = 0
 
     # parse logic field
     try:
@@ -55,7 +125,6 @@ def set_rule(payload):
 
         # if greater than logic, must have templ
         if logic == 0:
-            print("reached logic 0")
             try:
                 templ = float(content['templ'])
                 # set to an empty string to become a NULL upon db write
@@ -102,16 +171,16 @@ def set_rule(payload):
         cur = conn.cursor()
 
         cur.execute("""
-                    INSERT INTO rules (id, scale, logic, templ, temph)
+                    INSERT INTO rules (id, unit, logic, templ, temph)
                     VALUES (%s, %s, %s, NULLIF(CAST(%s AS TEXT), '')::numeric, NULLIF(CAST(%s AS TEXT), '')::numeric);
                     """,
-                    (id, logic, scale, templ, temph))
+                    (id, logic, unit, templ, temph))
         conn.commit()
         cur.close()
         conn.close()
 
         return Response(
-            json.dumps({'id': id, 'scale': logic, 'logic': logic, 'templ': templ, 'temph': temph}),
+            json.dumps({'id': id, 'unit': unit, 'logic': logic, 'templ': templ, 'temph': temph}),
             status=200,
             mimetype='application/json'
         )
@@ -122,6 +191,7 @@ def set_rule(payload):
             status=409,
             mimetype='application/json'
         )
+
 def get_rule(payload):
 
     content = request.json
@@ -142,8 +212,8 @@ def get_rule(payload):
         cur = conn.cursor()
 
         cur.execute("""
-                    SELECT r.logic, s.unit from rules r
-                    JOIN scale s on s.id = r.scale WHERE r.id = %s;
+                    SELECT r.logic, u.unit from rules r
+                    JOIN units u on u.id = r.unit WHERE r.id = %s;
                     """,
                     (id))
         res = cur.fetchone()
@@ -152,7 +222,11 @@ def get_rule(payload):
         if res is None:
             return error_maker(400, f'no rule exists for id {id}')
         else:
-            return json.dumps({ 'logic': res[0], 'unit': res[1] })
+            return Response(
+                json.dumps({ 'logic': res[0], 'unit': res[1] }),
+                status=200,
+                mimetype='application/json'
+            )
 
     except (Exception, psycopg2.DatabaseError) as error:
         return error_maker(400, error.pgerror)
@@ -167,8 +241,8 @@ def get_rule_old(id):
         cur = conn.cursor()
 
         cur.execute("""
-                    SELECT r.logic, s.unit from rules r
-                    JOIN scale s on s.id = r.scale WHERE r.id = %s;
+                    SELECT r.logic, u.unit from rules r
+                    JOIN units u on u.id = r.unit WHERE r.id = %s;
                     """,
                     (id))
         res = cur.fetchone()
