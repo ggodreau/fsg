@@ -8,48 +8,14 @@ app = Flask(__name__)
 def hello():
     return "Hello World!"
 
+@app.route("/payload", methods=['GET', 'POST'])
+def pl():
+    res = pg.print_payload(request)
+    return res
+
 @app.route("/setrule", methods=['GET', 'POST'])
 def sr():
-    content = request.json
-
-    try:
-        id = content['id']
-    except Keyerror:
-        return json.dumps({'error': 'invalid id parameter'})
-    # default to celsius
-    try:
-        scale = content['scale']
-    except KeyError:
-        scale = 1
-    try:
-        logic = content['logic']
-        # if greater than logic, must have templ
-        if logic == 0:
-            try:
-                templ = content['templ']
-                temph = None
-            except Keyerror:
-                return json.dumps({'error': 'low temp needed for greater than logic'})
-        # if less than logic, must have temph
-        if logic == 1:
-            try:
-                temph = content['temph']
-                templ = None
-            except Keyerror:
-                return json.dumps({'error': 'high temp needed for less than logic'})
-        # if OOB logic, must have both low and high temp limits
-        if logic == 2:
-            try:
-                templ = content['templ']
-                templ = content['temph']
-            except Keyerror:
-                return json.dumps({'error': 'both low and high temp needed for OOB logic'})
-    except Keyerror:
-        return json.dumps({'error': 'invalid logic parameter'})
-
-    print(id, scale, logic, templ, temph)
-
-    res = pg.set_rule(id, logic, templ, temph, scale)
+    res = pg.set_rule(request)
     return res
 
 @app.route("/getrule", methods=['GET', 'POST'])

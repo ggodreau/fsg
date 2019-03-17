@@ -15,6 +15,6 @@ psql -v ON_ERROR_STOP=1 --username "docker" --dbname "docker" <<-EOSQL
       unit TEXT
     );
 
-    INSERT INTO scale (id, unit) VALUES (1, 'celsius');
-    INSERT INTO scale (id, unit) VALUES (2, 'farenheit');
+    INSERT INTO scale (id, unit) VALUES (0, 'celsius');
+    INSERT INTO scale (id, unit) VALUES (1, 'farenheit');
 EOSQL
