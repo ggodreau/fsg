@@ -1,6 +1,6 @@
 import json
 import psycopg2
-from flask import request, jsonify
+from flask import request, jsonify, Response
 
 def get_conn():
     conn = None
@@ -20,38 +20,20 @@ def get_conn():
     except (Exception, psycopg2.DatabaseError) as error:
         return error.pgerror
 
-def print_payload(payload):
-    content = payload.json
-    print(content['id'])
-    print(content['scale'])
-    print(content['logic'], type(content['logic']))
-    print(content['templ'], type(content['templ']))
-    print(content['temph'])
-    return json.dumps({'foo': 1})
-
 def set_rule(payload):
     """
     Sets rule for sensor with celsius default (1)
     """
     content = payload.json
 
-    # id = None
-    # logic = None
-    # templ = None
-    # temph = None
-    # scale = None
-
-    print("entered setrule section")
     # parse id field
     try:
-        print("entered id parsing section")
         id = str(content['id'])
     except:
         return json.dumps({'error': 'invalid or missing id parameter'})
 
     # parse temp scale
     try:
-        print("entered scale parsing section")
         scale = int(content['scale'])
         # validate scale is celsius or farenheit, respetctively
         if scale not in [0, 1]:
@@ -62,11 +44,9 @@ def set_rule(payload):
 
     # parse logic field
     try:
-        print("entered logic parsing section")
         logic = int(content['logic'])
         # if greater than logic, must have templ
         if logic == 0:
-            print("entered logic 0 section")
             try:
                 templ = content['templ']
                 # set to an empty string to become a NULL upon db write
@@ -75,19 +55,14 @@ def set_rule(payload):
                 return json.dumps({'error': 'low temp needed for greater than logic'})
         # if less than logic, must have temph
         elif logic == 1:
-            print("entered logic 1 section")
             try:
-                print("entered temph")
                 temph = content['temph']
-                print("entered templ")
                 # set to an empty string to become a NULL upon db write
                 templ = ''
-                print("finished templ")
             except Keyerror:
                 return json.dumps({'error': 'high temp needed for less than logic'})
         # if OOB logic, must have both low and high temp limits
         elif logic == 2:
-            print("entered logic 2 section")
             try:
                 templ = content['templ']
                 temph = content['temph']
@@ -116,32 +91,18 @@ def set_rule(payload):
         cur.close()
         conn.close()
 
-        return json.dumps({'id': id, 'scale': logic, 'logic': logic, 'templ': templ, 'temph': temph})
+        return Response(
+            json.dumps({'id': id, 'scale': logic, 'logic': logic, 'templ': templ, 'temph': temph}),
+            status=200,
+            mimetype='application/json'
+        )
 
     except (Exception, psycopg2.IntegrityError) as error:
-        return json.dumps({'error': str(error)})
-
-def set_rule_old(id, logic, templ, temph, unit=1):
-    """
-    Sets rule for sensor with celsius default (1)
-    """
-    try:
-        conn = get_conn()
-        cur = conn.cursor()
-
-        cur.execute("""
-                    INSERT INTO rules (id, scale, logic, templ, temph)
-                    VALUES (%s, %s, %s, %s, %s);
-                    """,
-                    (id, logic, unit, templ, temph))
-        conn.commit()
-        cur.close()
-        conn.close()
-
-        return json.dumps({'id': str(id), 'scale': str(logic), 'unit': str(unit), 'templ': str(templ), 'temph': str(temph)})
-
-    except (Exception, psycopg2.DatabaseError) as error:
-        return json.dumps({'error': error.pgerror})
+        return Response(
+            json.dumps({'error': str(error)}),
+            status=409,
+            mimetype='application/json'
+        )
 
 def get_rule(id):
     """

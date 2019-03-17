@@ -8,11 +8,6 @@ app = Flask(__name__)
 def hello():
     return "Hello World!"
 
-@app.route("/payload", methods=['GET', 'POST'])
-def pl():
-    res = pg.print_payload(request)
-    return res
-
 @app.route("/setrule", methods=['GET', 'POST'])
 def sr():
     res = pg.set_rule(request)
