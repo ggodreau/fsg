@@ -27,6 +27,27 @@ def error_maker(status_code, message):
         mimetype='application/json'
     )
 
+def __status_resp__(status, status_code, s_value, logic, templ, temph, unit=1):
+    return Response(
+        json.dumps({
+            'status': status,
+            'sensor_value': s_value,
+            'logic': logic,
+            'templ': templ,
+            'temph': temph,
+            'unit': unit
+        }),
+        status=status_code,
+        mimetype='application/json'
+    )
+
+def __convert_to_celsius__(f):
+    if f is None:
+        return None
+    else:
+        print("f type is: ", type(f))
+        return (float(f)-32)/1.8
+
 def __compare_temps__(payload):
     """
     Compares temps to their logic levels and calls twilio
@@ -36,7 +57,57 @@ def __compare_temps__(payload):
           str(payload),
           payload['logic'],
           payload['templ'],
-          payload['temph'])
+          payload['temph'],
+          payload['s_value'],
+          payload['s_unit']
+          )
+
+    # if the units aren't the same betweeen the db
+    # and sensor data...
+    if payload['unit'] != payload['s_unit']:
+        # if the db is celsius, the sensor data must be fahrenheit
+        if payload['unit'] == 0:
+            # convert the sensor data to celsius
+            payload['s_value'] = __convert_to_celsius__(payload['s_value'])
+        else:
+            # convert the db templ and temph to celsius
+            payload['templ'] = __convert_to_celsius__(payload['templ'])
+            payload['temph'] = __convert_to_celsius__(payload['temph'])
+
+    # now that we have consistent units, we can compare logic...
+
+    # temp under ll
+    if payload['logic'] == 0:
+        if payload['s_value'] < payload['templ']:
+            print('logic0, temp under lower lim')
+            return __status_resp__(
+                'ng',
+                200,
+                payload['s_value'],
+                payload['logic'],
+                payload['templ'],
+                payload['temph']
+            )
+        else:
+            return __status_resp__(
+                'ok',
+                200,
+                payload['s_value'],
+                payload['logic'],
+                payload['templ'],
+                payload['temph']
+            )
+
+    # temp over ul
+    elif payload['logic'] == 1:
+        if payload['s_value'] > payload['temph']:
+            print('logic1, temp over upper lim')
+    # temp OOB
+    elif payload['logic'] == 2:
+        if payload['s_value'] < payload['templ'] or \
+                payload['s_value'] > payload['temph']:
+            print('logic2, temp OOB')
+
     return('butthead')
 
 def input_data(payload):
@@ -51,7 +122,9 @@ def input_data(payload):
         'logic': None,
         'unit': None,
         'templ': None,
-        'temph': None
+        'temph': None,
+        's_value': None,
+        's_unit': None
     }
 
     # parse id field
@@ -98,6 +171,9 @@ def input_data(payload):
         else:
             for k, v in zip(compare_temps_payload.keys(), res):
                 compare_temps_payload[k] = v
+            # add input sensor data to compare_temps_payload dict
+            compare_temps_payload['s_value'] = value
+            compare_temps_payload['s_unit'] = unit
             return __compare_temps__(compare_temps_payload)
     except (Exception, psycopg2.DatabaseError) as error:
         return error_maker(400, error.pgerror)
