@@ -20,9 +20,16 @@ def get_conn():
     except (Exception, psycopg2.DatabaseError) as error:
         return error.pgerror
 
+def error_maker(status_code, message):
+    return Response(
+        json.dumps({'error': message}),
+        status=status_code,
+        mimetype='application/json'
+    )
+
 def set_rule(payload):
     """
-    Sets rule for sensor with celsius default (1)
+    Sets rule for sensor with celsius default (0)
     """
     content = payload.json
 
@@ -45,37 +52,49 @@ def set_rule(payload):
     # parse logic field
     try:
         logic = int(content['logic'])
+
         # if greater than logic, must have templ
         if logic == 0:
+            print("reached logic 0")
             try:
-                templ = content['templ']
+                templ = float(content['templ'])
                 # set to an empty string to become a NULL upon db write
                 temph = ''
-            except Keyerror:
-                return json.dumps({'error': 'low temp needed for greater than logic'})
+            except KeyError:
+                return error_maker(400, 'low temp needed for greater than logic')
+            except ValueError:
+                return error_maker(400, 'templ value not parsable')
+
         # if less than logic, must have temph
         elif logic == 1:
             try:
-                temph = content['temph']
+                temph = float(content['temph'])
                 # set to an empty string to become a NULL upon db write
                 templ = ''
-            except Keyerror:
-                return json.dumps({'error': 'high temp needed for less than logic'})
+            except KeyError:
+                return error_maker(400, 'high temp needed for less than logic')
+            except ValueError:
+                return error_maker(400, 'temph value not parsable')
+
         # if OOB logic, must have both low and high temp limits
         elif logic == 2:
             try:
-                templ = content['templ']
-                temph = content['temph']
-            except Keyerror:
-                return json.dumps({'error': 'both low and high temp needed for OOB logic'})
+                templ = float(content['templ'])
+                temph = float(content['temph'])
+            except KeyError:
+                return error_maker(400, 'high and low temp needed for OOB logic')
+            except ValueError:
+                return error_maker(400, 'templ or temph values not parsable')
             if templ >= temph:
-                return json.dumps({'error': 'lower temp limit cannot be greater than or equal to upper temp limit'})
-        else:
-            return json.dumps({'error': 'invalid logic parameter'})
-    except Keyerror:
-        return json.dumps({'error': 'missing logic parameter'})
+                return error_maker(400, 'lower temp limit cannot be grater than or equal to upper temp limit')
 
-    print('to be written: ', id, scale, logic, templ, temph)
+        # logic param is parsable but not valid (0, 1, or 2)
+        else:
+            return error_maker(400, 'invalid logic parameter'})
+    except KeyError:
+        return error_maker(400, 'missing logic parameter')
+    except ValueError:
+        return error_maker(400, 'logic parameter not parsable')
 
     # finally write the rule to the db
     try:

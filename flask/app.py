@@ -8,12 +8,12 @@ app = Flask(__name__)
 def hello():
     return "Hello World!"
 
-@app.route("/setrule", methods=['GET', 'POST'])
+@app.route("/setrule", methods=['POST'])
 def sr():
     res = pg.set_rule(request)
     return res
 
-@app.route("/getrule", methods=['GET', 'POST'])
+@app.route("/getrule", methods=['GET'])
 def gr():
     content = request.json
 
