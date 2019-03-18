@@ -14,12 +14,14 @@
     - [Examples](#psde)
 
 <a name="d"/>
+
 ## Dependencies
 
 - Docker daemon installed on local machine
 - You have a [Twilio account](https://www.twilio.com/try-twilio)
 
 <a name="ifu"/>
+
 ## Instructions for Use
 
 - Clone this repo to your machine
@@ -29,7 +31,9 @@
     messages to when there is an alert).
   - Do not change any values within the `pg` section of `constants.json`
 - Move into the root directory of the cloned repository
+
 <a name="su"/>
+
 - Run `docker-compose build --no-cache` to build the images
 - Run `docker-compose up` to start the cluster
   - This will spawn two machines:
@@ -49,6 +53,7 @@
 | /getrule | GET | JSON | Retrieves rule details on a sensor. |
 
 <a name="sr"/>
+
 ### Setting Rules
 
 A sensor must have rules set before it can have data posted to it. To set
@@ -63,6 +68,7 @@ rules, call the `/setrule` endpoint with the following JSON:
 | temph     | float | 8B | see desc | n/a | required if logic != 0 |
 
 <a name="sre"/>
+
 #### Example
 
 _Note: The below example assumes a flask api IP address of_ `172.19.0.3`:
@@ -86,6 +92,7 @@ b'{"id": "sensor12345", "unit": 1, "logic": 0, "templ": 32.0, "temph": ""}'
 ```
 
 <a name="gr"/>
+
 ### Getting Rules
 
 Assuming _you have already set a rule for a sensor_ using the `/setrule`
@@ -97,6 +104,7 @@ be updated once they have been created.
 | id        | text | 1-255 | y         | n/a     | sensor GUID you wish to retrieve |
 
 <a name="gre"/>
+
 #### Example
 
 _Note: The below example assumes a flask api IP address of_ `172.19.0.3`:
@@ -119,6 +127,7 @@ b'{"logic": 0, "unit": "farenheit", "templ": "32.0", "temph": "None"}
 ```
 
 <a name="psd"/>
+
 ### Pushing Sensor Data
 
 Assuming _you have already set a rule for a sensor_ using the `/setrule`
@@ -138,6 +147,7 @@ affect the operation of the utility. Note that the default response unit from
 the api is in Celsius for simplicity.
 
 <a name="psde"/>
+
 #### Example
 
 _Note: The below example assumes a flask api IP address of_ `172.19.0.3`:
@@ -167,6 +177,7 @@ Text messages will be presented to a mobile device similar to the following:
 </p>
 
 <a name="td"/>
+
 ## Tear Down
 
 To stop the service, run `docker-compose stop && docker-compose rm -f` from the
