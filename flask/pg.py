@@ -1,6 +1,7 @@
 import json
 import psycopg2
 from flask import request, jsonify, Response
+from tw import send_sms
 
 def get_conn():
     conn = None
@@ -20,7 +21,7 @@ def get_conn():
     except (Exception, psycopg2.DatabaseError) as error:
         return error.pgerror
 
-def error_maker(status_code, message):
+def __error_resp__(status_code, message):
     return Response(
         json.dumps({'error': message}),
         status=status_code,
@@ -35,7 +36,7 @@ def __status_resp__(status, status_code, s_value, logic, templ, temph, unit=1):
             'logic': logic,
             'templ': templ,
             'temph': temph,
-            'unit': unit
+            'unit': int(unit)
         }),
         status=status_code,
         mimetype='application/json'
@@ -80,6 +81,7 @@ def __compare_temps__(payload):
     if payload['logic'] == 0:
         if payload['s_value'] < payload['templ']:
             print('logic0, temp under lower lim')
+            send_sms(f"Sensor {payload['id']} under lower limit {payload['templ']} with sensor value of {payload['s_value']} celsius.")
             return __status_resp__(
                 'ng',
                 200,
@@ -102,13 +104,50 @@ def __compare_temps__(payload):
     elif payload['logic'] == 1:
         if payload['s_value'] > payload['temph']:
             print('logic1, temp over upper lim')
+            send_sms(f"Sensor {payload['id']} over upper limit {payload['temph']} with sensor value of {payload['s_value']} celsius.")
+            return __status_resp__(
+                'ng',
+                200,
+                payload['s_value'],
+                payload['logic'],
+                payload['templ'],
+                payload['temph']
+            )
+        else:
+            return __status_resp__(
+                'ok',
+                200,
+                payload['s_value'],
+                payload['logic'],
+                payload['templ'],
+                payload['temph']
+            )
+
     # temp OOB
     elif payload['logic'] == 2:
         if payload['s_value'] < payload['templ'] or \
                 payload['s_value'] > payload['temph']:
             print('logic2, temp OOB')
-
-    return('butthead')
+            send_sms(f"Sensor {payload['id']} out or lower or upper temp bounds {payload['templ']}, {payload['temph']} with sensor value of {payload['s_value']} celsius.")
+            return __status_resp__(
+                'ng',
+                200,
+                payload['s_value'],
+                payload['logic'],
+                payload['templ'],
+                payload['temph']
+            )
+        else:
+            return __status_resp__(
+                'ok',
+                200,
+                payload['s_value'],
+                payload['logic'],
+                payload['templ'],
+                payload['temph']
+            )
+    else:
+        __error_resp__(500, 'unable to calculate sensor values')
 
 def input_data(payload):
     """
@@ -131,25 +170,25 @@ def input_data(payload):
     try:
         id = str(content['id'])
     except:
-        return error_maker(400, 'invalid or missing id parameter')
+        return __error_resp__(400, 'invalid or missing id parameter')
 
     # parse value field
     try:
         value = float(content['value'])
     except KeyError:
-        return error_maker(400, 'no value field found')
+        return __error_resp__(400, 'no value field found')
     except ValueError:
-        return error_maker(400, 'value field not parsable')
+        return __error_resp__(400, 'value field not parsable')
 
     # parse unit field
     try:
         unit = int(content['unit'])
         if unit not in [0, 1]:
-            return error_maker(400, 'invalid unit parameter')
+            return __error_resp__(400, 'invalid unit parameter')
     except KeyError:
-        return error_maker(400, 'no unit field found')
+        return __error_resp__(400, 'no unit field found')
     except ValueError:
-        return error_maker(400, 'unit field not parsable')
+        return __error_resp__(400, 'unit field not parsable')
 
     # call the db to get templ, temph, and logic for the input id
     # this is a copy of get_rule; needs refactored into
@@ -167,16 +206,19 @@ def input_data(payload):
         cur.close()
         conn.close()
         if res is None:
-            return error_maker(400, 'rule for id does not exist, please create a rule at the /setrule endpoint')
+            return __error_resp__(400, 'rule for id does not exist, please create a rule at the /setrule endpoint')
         else:
             for k, v in zip(compare_temps_payload.keys(), res):
                 compare_temps_payload[k] = v
             # add input sensor data to compare_temps_payload dict
             compare_temps_payload['s_value'] = value
             compare_temps_payload['s_unit'] = unit
+            compare_temps_payload['id'] = id
             return __compare_temps__(compare_temps_payload)
+    except TypeError:
+        return __error_resp__(400, 'TypeError')
     except (Exception, psycopg2.DatabaseError) as error:
-        return error_maker(400, error.pgerror)
+        return __error_resp__(400, error.pgerror)
 
 def set_rule(payload):
     """
@@ -188,14 +230,14 @@ def set_rule(payload):
     try:
         id = str(content['id'])
     except:
-        return error_maker(400, 'invalid or missing id parameter')
+        return __error_resp__(400, 'invalid or missing id parameter')
 
     # parse temp unit
     try:
         unit = int(content['unit'])
         # validate unit is celsius or farenheit, respetctively
         if unit not in [0, 1]:
-            return error_maker(400, 'invalid unit parameter')
+            return __error_resp__(400, 'invalid unit parameter')
     # assume a default of celsius if unit is missing
     except KeyError:
         unit = 0
@@ -211,9 +253,9 @@ def set_rule(payload):
                 # set to an empty string to become a NULL upon db write
                 temph = ''
             except KeyError:
-                return error_maker(400, 'low temp needed for greater than logic')
+                return __error_resp__(400, 'low temp needed for greater than logic')
             except ValueError:
-                return error_maker(400, 'templ value not parsable')
+                return __error_resp__(400, 'templ value not parsable')
 
         # if less than logic, must have temph
         elif logic == 1:
@@ -222,9 +264,9 @@ def set_rule(payload):
                 # set to an empty string to become a NULL upon db write
                 templ = ''
             except KeyError:
-                return error_maker(400, 'high temp needed for less than logic')
+                return __error_resp__(400, 'high temp needed for less than logic')
             except ValueError:
-                return error_maker(400, 'temph value not parsable')
+                return __error_resp__(400, 'temph value not parsable')
 
         # if OOB logic, must have both low and high temp limits
         elif logic == 2:
@@ -232,19 +274,19 @@ def set_rule(payload):
                 templ = float(content['templ'])
                 temph = float(content['temph'])
             except KeyError:
-                return error_maker(400, 'high and low temp needed for OOB logic')
+                return __error_resp__(400, 'high and low temp needed for OOB logic')
             except ValueError:
-                return error_maker(400, 'templ or temph values not parsable')
+                return __error_resp__(400, 'templ or temph values not parsable')
             if templ >= temph:
-                return error_maker(400, 'lower temp limit cannot be grater than or equal to upper temp limit')
+                return __error_resp__(400, 'lower temp limit cannot be grater than or equal to upper temp limit')
 
         # logic param is parsable but not valid (0, 1, or 2)
         else:
-            return error_maker(400, 'invalid logic parameter')
+            return __error_resp__(400, 'invalid logic parameter')
     except KeyError:
-        return error_maker(400, 'missing logic parameter')
+        return __error_resp__(400, 'missing logic parameter')
     except ValueError:
-        return error_maker(400, 'logic parameter not parsable')
+        return __error_resp__(400, 'logic parameter not parsable')
 
     # finally write the rule to the db
     try:
@@ -280,9 +322,9 @@ def get_rule(payload):
     try:
         id = str(content['id'])
     except KeyError:
-        return error_maker(400, 'missing id parameter')
+        return __error_resp__(400, 'missing id parameter')
     except ValueError:
-        return error_maker(400, 'id parameter not parsable')
+        return __error_resp__(400, 'id parameter not parsable')
 
     print(id)
 
@@ -301,7 +343,7 @@ def get_rule(payload):
         cur.close()
         conn.close()
         if res is None:
-            return error_maker(400, f'no rule exists for id {id}')
+            return __error_resp__(400, f'no rule exists for id {id}')
         else:
             return Response(
                 json.dumps({ 'logic': res[0], 'unit': res[1] }),
@@ -310,7 +352,7 @@ def get_rule(payload):
             )
 
     except (Exception, psycopg2.DatabaseError) as error:
-        return error_maker(400, error.pgerror)
+        return __error_resp__(400, error.pgerror)
 
 if __name__ == '__main__':
     connect()

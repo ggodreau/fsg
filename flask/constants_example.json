@@ -1,0 +1,14 @@
+{
+  "twilio": {
+    "account_phone": "+1737XXXXXXX",
+    "account_sid": "AC7XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "auth_token": "917XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "tgt_phone": "+1512XXXXXXXX"
+  },
+  "pg": {
+    "host": "pg",
+    "database": "docker",
+    "user": "docker",
+    "password": "docker"
+  }
+}
