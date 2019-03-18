@@ -201,7 +201,7 @@ def input_data(payload):
                     SELECT r.logic, r.unit, r.templ, r.temph
                     FROM rules r WHERE r.id = %s;
                     """,
-                    (id))
+                    (id,))
         res = cur.fetchone()
         cur.close()
         conn.close()
@@ -326,7 +326,7 @@ def get_rule(payload):
     except ValueError:
         return __error_resp__(400, 'id parameter not parsable')
 
-    print(id)
+    print(id, type(id))
 
     # get the rule for the input id from the db
     try:
@@ -335,10 +335,10 @@ def get_rule(payload):
         cur = conn.cursor()
 
         cur.execute("""
-                    SELECT r.logic, u.unit from rules r
+                    SELECT r.logic, u.unit, r.templ, r.temph from rules r
                     JOIN units u on u.id = r.unit WHERE r.id = %s;
                     """,
-                    (id))
+                    (id,))
         res = cur.fetchone()
         cur.close()
         conn.close()
@@ -346,7 +346,7 @@ def get_rule(payload):
             return __error_resp__(400, f'no rule exists for id {id}')
         else:
             return Response(
-                json.dumps({ 'logic': res[0], 'unit': res[1] }),
+                json.dumps({ 'logic': res[0], 'unit': res[1], 'templ': str(res[2]), 'temph': str(res[3]) }),
                 status=200,
                 mimetype='application/json'
             )
