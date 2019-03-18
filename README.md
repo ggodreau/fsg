@@ -12,6 +12,7 @@
     - [Examples](#gre)
   - [Pushing Sensor Data](#psd)
     - [Examples](#psde)
+- [Future Work](#fw)
 
 <a name="d"/>
 
@@ -182,3 +183,12 @@ Text messages will be presented to a mobile device similar to the following:
 
 To stop the service, run `docker-compose stop && docker-compose rm -f` from the
 root directory of the cloned repository.
+
+<a name="fw"/>
+
+## Future Work
+
+- Unit tests
+- Integration tests
+- Host dependendency installation scripts
+- Making my code suck less in general
